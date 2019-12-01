@@ -1,14 +1,10 @@
 const User = require('../models/user');
+const { validationResult } = require('express-validator');
 
 exports.signUp = async (req, res) => {
-  const existingUser = await User.findOne({
-    email: req.body.email
-  });
-
-  if (existingUser) {
-    return res.status(403).json({
-      message: 'Этот email уже используется'
-    });
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
   }
 
   const user = await new User(req.body);
