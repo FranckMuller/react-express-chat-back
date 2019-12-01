@@ -41,6 +41,8 @@ exports.signUpValidate = [
       });
     }),
 
+  // TODO: repeat password
+
   check('password', 'Пароль должен состоять более чем из 7 латинских строчных и заглавных букв и чисел')
     .not()
     .isEmpty()
