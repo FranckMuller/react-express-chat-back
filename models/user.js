@@ -34,6 +34,8 @@ const userSchema = new Schema({
     required: true
   },
 
+  salt: String,
+
   created: {
     type: Date,
     default: Date.now
@@ -47,9 +49,15 @@ userSchema.virtual('password').set(function(password) {
   this.hashed_password = this.encryptPassword(password);
 });
 
-userSchema.methods.encryptPassword = function(password) {
-  if (!password) return '';
-  return CryptoJS.HmacSHA512(password, this.salt);
+userSchema.methods = {
+  encryptPassword: function(password) {
+    if (!password) return '';
+    return CryptoJS.HmacSHA512(password, this.salt).toString();
+  },
+
+  comparePasswords: function(authPassword) {
+    return this.hashed_password === this.encryptPassword(authPassword);
+  }
 };
 
 module.exports = mongoose.model('User', userSchema);

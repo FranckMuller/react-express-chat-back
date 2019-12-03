@@ -1,38 +1,27 @@
 const validator = require('validator');
 const User = require('../../models/user');
-const { check } = require('express-validator');
+const { check, bail, body, oneOf, optional, checkSchema } = require('express-validator');
 
 exports.signUpValidate = [
-  check('email')
+  check('firstName', 'Введите ваше имя')
+    .exists()
+    .bail()
     .not()
-    .isEmpty()
-    .withMessage('Заполните поле email')
-    .custom(value => {
-      return User.findOne({ email: value }).then(user => {
-        if (user) {
-          return Promise.reject('Такой email уже используется');
-        }
-      });
-    })
-    .isEmail()
-    .withMessage('Неверный формат email'),
+    .isEmpty(),
 
-  check('firstName')
+  check('lastName', 'Введите вашу фамилию')
+    .exists()
+    .bail()
     .not()
-    .isEmpty()
-    .withMessage('Введите ваше имя'),
+    .isEmpty(),
 
-  check('lastName')
+  check('login', 'Введите ваш логин')
     .not()
     .isEmpty()
-    .withMessage('Введите вашу фамилию'),
-
-  check('login')
-    .not()
-    .isEmpty()
-    .withMessage('Введите ваш логин')
+    .bail()
     .isLength({ min: 5 })
     .withMessage('Логин должен содержать более 5 символов')
+    .bail()
     .custom(value => {
       return User.findOne({ login: value }).then(user => {
         if (user) {
@@ -41,12 +30,84 @@ exports.signUpValidate = [
       });
     }),
 
-  // TODO: repeat password
-
-  check('password', 'Пароль должен состоять более чем из 7 латинских строчных и заглавных букв и чисел')
+  check('email', 'Заполните поле email')
+    .exists()
+    .bail()
     .not()
     .isEmpty()
-    .withMessage('Введите ваш пароль')
+    .bail()
+    .isEmail()
+    .withMessage('Неверный формат email')
+    .bail()
+    .custom(value => {
+      return User.findOne({ email: value }).then(user => {
+        if (user) {
+          return Promise.reject('Такой email уже используется');
+        }
+      });
+    }),
+
+  check('password', 'Введите ваш пароль')
+    .exists()
+    .bail()
+    .not()
+    .isEmpty()
+    .bail()
     .isLength({ min: 8 })
+    .bail()
     .matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?!.*\s).*$/)
+    .withMessage('Пароль должен состоять более чем из 7 латинских строчных и заглавных букв и чисел'),
+
+  check('confirmPassword', 'Повторите пароль')
+    .exists()
+    .bail()
+    .not()
+    .isEmpty()
+    .bail()
+    .custom((value, { req }) => {
+      if (value !== req.body.password) {
+        return Promise.reject('Пароли не совпадают');
+      }
+      return true;
+    })
+];
+
+exports.signInValidate = [
+  oneOf([
+    check('email').custom((value, { req }) => {
+      if (value) {
+        return User.findOne({ email: value }).then(user => {
+          if (!user) {
+            return Promise.reject({
+              message: 'Пользователь не найден'
+            });
+          }
+
+          if (!user.comparePasswords(req.body.password)) {
+            return Promise.reject({
+              message: 'Неверный email или пароль'
+            });
+          }
+        });
+      }
+    }),
+
+    check('login').custom((value, { req }) => {
+      if (value) {
+        return User.findOne({ login: value }).then(user => {
+          if (!user) {
+            return Promise.reject({
+              message: 'Пользователь не найден'
+            });
+          }
+
+          if (!user.comparePasswords(req.body.password)) {
+            return Promise.reject({
+              message: 'Неверный логин или пароль'
+            });
+          }
+        });
+      }
+    })
+  ])
 ];
